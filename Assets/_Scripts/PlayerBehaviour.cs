@@ -26,6 +26,10 @@ public class PlayerBehaviour : MonoBehaviour
     public bool onRamp;
     public float rampForceFactor;
 
+    [Header("Dust Trail")]
+    private ParticleSystem m_dustTrail;
+    public Color dustColor;
+
     [Header("Player Abilities")] 
     public int health;
     public int lives;
@@ -46,6 +50,7 @@ public class PlayerBehaviour : MonoBehaviour
         m_rigidBody2D = GetComponent<Rigidbody2D>();
         m_spriteRenderer = GetComponent<SpriteRenderer>();
         m_animator = GetComponent<Animator>();
+        m_dustTrail = GetComponentInChildren<ParticleSystem>();
     }
 
     // Update is called once per frame
@@ -124,6 +129,7 @@ public class PlayerBehaviour : MonoBehaviour
                         m_rigidBody2D.AddForce(Vector2.down * horizontalForce * rampForceFactor * Time.deltaTime);
                     }
 
+                    PlayDustTrail();
 
                     m_animator.SetInteger("AnimState", (int)PlayerAnimationType.RUN);
                 }
@@ -141,6 +147,8 @@ public class PlayerBehaviour : MonoBehaviour
                         m_rigidBody2D.AddForce(Vector2.down * horizontalForce * rampForceFactor * Time.deltaTime);
                     }
 
+                    PlayDustTrail();
+
                     m_animator.SetInteger("AnimState", (int)PlayerAnimationType.RUN);
                 }
                 else
@@ -155,6 +163,8 @@ public class PlayerBehaviour : MonoBehaviour
                 m_rigidBody2D.AddForce(Vector2.up * verticalForce);
                 m_animator.SetInteger("AnimState", (int) PlayerAnimationType.JUMP);
                 isJumping = true;
+
+                PlayDustTrail();
             }
             else
             {
@@ -224,5 +234,12 @@ public class PlayerBehaviour : MonoBehaviour
         {
             LoseLife();
         }
+    }
+
+    private void PlayDustTrail()
+    {
+        m_dustTrail.GetComponent<Renderer>().material.SetColor("_Color", dustColor);
+
+        m_dustTrail.Play();
     }
 }
