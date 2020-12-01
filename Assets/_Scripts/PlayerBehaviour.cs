@@ -1,8 +1,19 @@
-﻿using System.Collections;
+﻿using Cinemachine;
+using System.Collections;
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+
+[System.Serializable]
+public enum AudioIndex
+{
+    JUMP,
+    HIT1,
+    HIT2,
+    HIT3,
+    DIE
+}
 
 public class PlayerBehaviour : MonoBehaviour
 {
@@ -30,11 +41,22 @@ public class PlayerBehaviour : MonoBehaviour
     private ParticleSystem m_dustTrail;
     public Color dustColor;
 
+    [Header("Sounds")]
+    public AudioSource[] sounds;
+
     [Header("Player Abilities")] 
     public int health;
     public int lives;
     public BarController healthBar;
     public Animator livesHUD;
+
+    [Header("Screen Shake")]
+    public CinemachineVirtualCamera vcam1;
+    public CinemachineBasicMultiChannelPerlin perlin;
+    public float shakeIntensity;
+    public float maxShakeTime;
+    public float shakeTimer;
+    public bool isCameraShaking;
 
     private Rigidbody2D m_rigidBody2D;
     private SpriteRenderer m_spriteRenderer;
@@ -47,10 +69,18 @@ public class PlayerBehaviour : MonoBehaviour
         health = 100;
         lives = 3;
 
+        shakeTimer = maxShakeTime;
+        isCameraShaking = false;
+
         m_rigidBody2D = GetComponent<Rigidbody2D>();
         m_spriteRenderer = GetComponent<SpriteRenderer>();
         m_animator = GetComponent<Animator>();
         m_dustTrail = GetComponentInChildren<ParticleSystem>();
+        
+        sounds = GetComponents<AudioSource>();
+
+        vcam1 = FindObjectOfType<CinemachineVirtualCamera>();
+        perlin = vcam1.GetCinemachineComponent<CinemachineBasicMultiChannelPerlin>();
     }
 
     // Update is called once per frame
@@ -59,6 +89,18 @@ public class PlayerBehaviour : MonoBehaviour
         _LookInFront();
         _LookAhead();
         _Move();
+
+        if(isCameraShaking)
+        {
+            shakeTimer -= Time.deltaTime;
+            
+            if(shakeTimer <= 0.0f)
+            {
+                perlin.m_AmplitudeGain = 0;
+                isCameraShaking = false;
+                shakeTimer = maxShakeTime;
+            }
+        }
     }
 
     private void _LookInFront()
@@ -163,7 +205,8 @@ public class PlayerBehaviour : MonoBehaviour
                 m_rigidBody2D.AddForce(Vector2.up * verticalForce);
                 m_animator.SetInteger("AnimState", (int) PlayerAnimationType.JUMP);
                 isJumping = true;
-
+                
+                sounds[(int)AudioIndex.JUMP].Play();
                 PlayDustTrail();
             }
             else
@@ -206,9 +249,20 @@ public class PlayerBehaviour : MonoBehaviour
         }
     }
 
+    private void OnCollisionStay2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Enemy"))
+        {
+            if(Time.frameCount % 20 == 0)
+                TakeDamage(5);
+        }
+    }
+
     public void LoseLife()
     {
         lives -= 1;
+
+        sounds[(int)AudioIndex.DIE].Play();
 
         livesHUD.SetInteger("LivesState", lives);
 
@@ -230,6 +284,9 @@ public class PlayerBehaviour : MonoBehaviour
         health -= damage;
         healthBar.SetValue(health);
 
+        PlayRandomHitSound();
+        ShakeCamera();
+
         if (health <= 0)
         {
             LoseLife();
@@ -241,5 +298,18 @@ public class PlayerBehaviour : MonoBehaviour
         m_dustTrail.GetComponent<Renderer>().material.SetColor("_Color", dustColor);
 
         m_dustTrail.Play();
+    }
+
+    private void PlayRandomHitSound()
+    {
+        int randomHitSound = UnityEngine.Random.Range(1, 3);
+
+        sounds[randomHitSound].Play();
+    }
+
+    private void ShakeCamera()
+    {
+        perlin.m_AmplitudeGain = shakeIntensity;
+        isCameraShaking = true;
     }
 }
